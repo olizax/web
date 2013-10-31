@@ -17,6 +17,8 @@ import (
     "strconv"
     "strings"
     "time"
+    "io/ioutil"
+    "io"
 )
 
 // ServerConfig is configuration for server objects.
@@ -64,6 +66,12 @@ type route struct {
     handler     reflect.Value
     httpHandler http.Handler
 }
+
+type nopCloser struct {
+    io.Reader
+}
+func(nopCloser) Close() error {return nil}
+
 
 func (s *Server) addRoute(r string, method string, handler interface{}) {
     cr, err := regexp.Compile(r)
@@ -299,11 +307,18 @@ func (s *Server) logRequest(ctx Context, sTime time.Time) {
 // with the returned route.
 func (s *Server) routeHandler(req *http.Request, w http.ResponseWriter) (unused *route) {
     requestPath := req.URL.Path
-    ctx := Context{req, map[string]string{}, s, w}
+    ctx := Context{req, map[string]string{},[]byte{}, s, w}
 
     //set some default headers
     ctx.SetHeader("Server", "web.go", true)
     tm := time.Now().UTC()
+
+    //first save post body to ctx
+    if  req.Method == "POST" || req.Method=="PUT"{
+        ctx.RawBody,_ = ioutil.ReadAll(req.Body)
+        req.Body = nopCloser{bytes.NewBuffer(ctx.RawBody)}
+    }
+
 
     //ignore errors from ParseForm because it's usually harmless.
     req.ParseForm()

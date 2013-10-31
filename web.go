@@ -29,6 +29,7 @@ import (
 type Context struct {
     Request *http.Request
     Params  map[string]string
+    RawBody []byte
     Server  *Server
     http.ResponseWriter
 }
